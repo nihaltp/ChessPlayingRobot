@@ -19,8 +19,9 @@
 #define stepsPerRevolution 200
 
 void square(int delayTime, int repeat);
-void runStepper(int delayTime, int repeat);
-void runOneStep(int delayTime);
+void diagonal(int delayTime, int repeat);
+void runStepper(int delayTime, int repeat, int x = 1, int y = 1);
+void runOneStep(int delayTime, int x = 1, int y = 1);
 
 // MARK: setup
 void setup() {
@@ -36,6 +37,7 @@ void setup() {
   
   square(500, 5);
   delay(5000);
+  diagonal(500, 5);
 }
 
 void loop() {}
@@ -78,19 +80,50 @@ void square(int delayTime, int repeat) {
   runStepper(delayTime, repeat);
 }
 
+// MARK: diagonal
+void diagonal(int delayTime, int repeat) {
+  Serial.println("Stepper motors are going to make diagonals.");
+  
+  // Set the spinning direction of LEFT motor to CLOCKWISE
+  // FORWARD RIGHT
+  Serial.println("Spin the LEFT stepper motor in CLOCKWISE direction for a FORWARD RIGHT movement.");
+  digitalWrite(dirPinX, HIGH);
+  
+  // Spin the stepper motor 5 revolution Fast:
+  runStepper(delayTime, repeat, 1, 0);
+  
+  // Set the spinning direction of LEFT motor to COUNTER CLOCKWISE
+  // BACKWARD RIGHT
+  Serial.println("Spin the LEFT stepper motor in COUNTER CLOCKWISE direction for a BACKWARD RIGHT movement.");
+  digitalWrite(dirPinX, LOW);
+  runStepper(delayTime, repeat, 1, 0);
+  
+  // Set the spinning direction of RIGHT motor to CLOCKWISE
+  // FORWARD LEFT
+  Serial.println("Spin the LEFT stepper motor in CLOCKWISE direction for a FORWARD LEFT movement.");
+  digitalWrite(dirPinY, HIGH);
+  runStepper(delayTime, repeat, 0, 1);
+  
+  // Set the spinning direction of RIGHT motor to COUNTER CLOCKWISE
+  // BACKWARD LEFT
+  Serial.println("Spin the LEFT stepper motor in COUNTER CLOCKWISE direction for a BACKWARD LEFT movement.");
+  digitalWrite(dirPinY, LOW);
+  runStepper(delayTime, repeat, 0, 1);
+}
+
 // MARK: runStepper
-void runStepper(int delayTime, int repeat) {
+void runStepper(int delayTime, int repeat, int x, int y) {
   for (int i = 0; i < stepsPerRevolution * repeat; i++) {
-    runOneStep(delayTime);
+    runOneStep(delayTime, x, y);
   }
   delay(delayTime);
 }
 
 // MARK: runOneStep
-void runOneStep(int delayTime) {
+void runOneStep(int delayTime, int x, int y) {
   // These six lines result in 1 step:
-  digitalWrite(stepPinX, HIGH);
-  digitalWrite(stepPinY, HIGH);
+  if (x) digitalWrite(stepPinX, HIGH);
+  if (y) digitalWrite(stepPinY, HIGH);
   delayMicroseconds(delayTime);
   digitalWrite(stepPinX, LOW);
   digitalWrite(stepPinY, LOW);
