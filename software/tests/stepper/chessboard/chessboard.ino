@@ -1,5 +1,5 @@
 /*
- * Version 1.2.1
+ * Version 1.2.2
  *
  * Sketch to control two stepper motors with
  * A4988/DRV8825 stepper motor driver and
@@ -29,21 +29,24 @@
 int xPosition = 0;
 int yPosition = 0;
 
-#define squareSize 75  // size of each square in steps
+#define squareSize 195  // size of each square in steps
 
-const char* files = "abcdefgh";
+const char* files = "hgfedcba";
 String currentSquare = "a1";
 
-void extractFileRank(String square, String& file, int& rank);
+void handleReset(String data);
+void executeMove(String data);
+void handleMove(String data);
+void extractFileRank(String square, String &file, int &rank);
 void moveFromTo(String fromFile, int fromRank, String toFile, int toRank);
 bool verifySquare(String square);
 void directionPrint(int steps, int xDir, int yDir);
 void runStepper(int steps, int xDir, int yDir, int delayTime = stepSpeed);
-void runOneStep(int delayTime);
+void runOneStep(int delayTime = stepSpeed);
 
 // MARK: setup
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   
   // Declare pins as output:
   pinMode(stepPinX, OUTPUT);
@@ -58,6 +61,7 @@ void setup() {
   Serial.println("Other commands:");
   Serial.println("RESET <square> - Reset the current position to the given square (e.g., RESET e2)");
   Serial.println("MOVE <steps>,<xDir>,<yDir> - Move the stepper motors (e.g., MOVE 100,0,0)");
+  Serial.println("Direction: 0,0 = FORWARD, \n\t0,1 = LEFT, \n\t1,0 = RIGHT, \n\t1,1 = BACKWARD");
   
   Serial.print("Please send the position of magnet (eg: a1, a8): ");
   // Wait until a valid serial message is received
@@ -94,12 +98,15 @@ void loop() {
       handleReset(data);
     }
     // if data starts with MOVE, then move the stepper motors
-    if (data.startsWith("MOVE")) {
+    else if (data.startsWith("MOVE")) {
       data = data.substring(4 + 1);
       executeMove(data);
     }
-    else {
+    else if (data.length() == 2 || data.length() == 4) {
       handleMove(data);
+    }
+    else {
+      Serial.println("Invalid command: " + data);
     }
   }
 }
@@ -112,23 +119,7 @@ void handleReset(String data) {
     return;
   }
   Serial.println("Invalid reset position. Please send the reset position in the format filerank (e.g., e2, e4): ");
-  while (true)
-  {
-    if (Serial.available()) {
-      delay(100);
-      
-      String data = Serial.readString();
-      data.trim();
-      data.toLowerCase();
-      if (verifySquare(data)) {
-        Serial.println("\nCurrent Square resetted from :" + currentSquare + " to :" + data);
-        currentSquare = data;
-        break;
-      } else {
-        Serial.println("Invalid reset position. Please send the reset position in the format filerank (e.g., a1, g8): ");
-      }
-    }
-  }
+  Serial.println("RESET <square> - Reset the current position to the given square (e.g., RESET e2)");
 }
 
 // MARK: executeMove
@@ -136,12 +127,17 @@ void executeMove(String data) {
   int firstComma = data.indexOf(",");
   int secondComma = data.indexOf(",", firstComma + 1);
   
+  if (firstComma == -1 || secondComma == -1) {
+    Serial.println("Error: Invalid format. Please use the format: MOVE <steps>,<xDir>,<yDir> - Move the stepper motors (e.g., MOVE 100,0,0)");
+    return;
+  }
+  
   int steps = data.substring(0, firstComma).toInt();
   int xDir = data.substring(firstComma + 1, secondComma).toInt();
   int yDir = data.substring(secondComma + 1).toInt();
   
   // check if the input is less than 0 or greater than MAX_STEPS
-  if (steps < 0 || steps > MAX_STEPS) {
+  if (steps <= 0 || steps > MAX_STEPS) {
     Serial.println("Invalid steps");
     return;
   }
@@ -162,9 +158,8 @@ void executeMove(String data) {
 
 // MARK: handleMove
 void handleMove(String data) {
-  if (data.length() != 4) {
-    Serial.println("Invalid move. Please send the move in the format from_square to_square (e.g., e2e4, a6a4): ");
-    return;
+  if (data.length() == 2) {
+    data = currentSquare + data;
   }
   
   String fromSquare = data.substring(0, 2);
@@ -198,12 +193,14 @@ void extractFileRank(String square, String& file, int& rank) {
 
 // MARK: moveFromTo
 void moveFromTo (String fromFile, int fromRank, String toFile, int toRank) {
+  // TODO: add diagonal movement
   if (fromFile != toFile) {
     // find if the file we want to move to is on the left or right
     // check the position of the file in the files array
     int toFileIndex = strchr(files, toFile.charAt(0)) - files;
     int fromFileIndex = strchr(files, fromFile.charAt(0)) - files;
     
+    // if the index of the file we want to move to is less than the index of the file we are at, then we need to move left, otherwise right
     int xDir = (fromFileIndex < toFileIndex) ? 0 : 1;
     int steps = abs(toFileIndex - fromFileIndex) * squareSize;
     
@@ -240,6 +237,7 @@ bool verifySquare(String square) {
 // MARK: directionPrint
 void directionPrint(int steps, int xDir, int yDir) {
   // print the direction of movement according to xDir and yDir
+  Serial.print("Moving ");
   if (xDir == 0) {
     if (yDir == 0) {
       xPosition += steps;  // add steps to xPosition
@@ -264,6 +262,7 @@ void directionPrint(int steps, int xDir, int yDir) {
 // MARK: runStepper
 void runStepper(int steps, int xDir, int yDir, int delayTime) {
   // Sets the spinning direction:
+  // LOW - runs clockwise, HIGH - runs counterclockwise
   digitalWrite(dirPinX, (xDir == 0) ? LOW : HIGH);
   digitalWrite(dirPinY, (yDir == 0) ? HIGH : LOW);
   
@@ -274,7 +273,7 @@ void runStepper(int steps, int xDir, int yDir, int delayTime) {
 }
 
 // MARK: runOneStep
-void runOneStep(int delayTime = stepSpeed) {
+void runOneStep(int delayTime) {
   // rotates both the stepper motors at the same time
   // These six lines result in 1 step:
   digitalWrite(stepPinX, HIGH);
