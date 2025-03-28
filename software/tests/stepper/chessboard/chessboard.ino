@@ -1,5 +1,5 @@
 /*
- * Version 1.1.0
+ * Version 1.1.1
  *
  * Sketch to control two stepper motors with
  * A4988/DRV8825 stepper motor driver and
@@ -85,7 +85,7 @@ void loop() {
     // if data starts with RESET, then reset the current position
     if (data.startsWith("RESET")) {
       // +1 to skip the space after RESET
-      data = data.substring(4 + 1);
+      data = data.substring(5 + 1);
       handleReset(data);
     } else {
       handleMove(data);
