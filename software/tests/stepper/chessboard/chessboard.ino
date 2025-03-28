@@ -1,5 +1,5 @@
 /*
- * Version 1.2.0
+ * Version 1.2.1
  *
  * Sketch to control two stepper motors with
  * A4988/DRV8825 stepper motor driver and
@@ -54,6 +54,10 @@ void setup() {
   Serial.println("Stepper motors are ready");
   Serial.println("Enter the moves in the format from_square to_square");
   Serial.println("For example, if you want to move from e2 to e4, Send e2e4\n\n");
+  
+  Serial.println("Other commands:");
+  Serial.println("RESET <square> - Reset the current position to the given square (e.g., RESET e2)");
+  Serial.println("MOVE <steps>,<xDir>,<yDir> - Move the stepper motors (e.g., MOVE 100,0,0)");
   
   Serial.print("Please send the position of magnet (eg: a1, a8): ");
   // Wait until a valid serial message is received
