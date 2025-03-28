@@ -1,5 +1,5 @@
 /*
- * Version 1.1.1
+ * Version 1.2.0
  *
  * Sketch to control two stepper motors with
  * A4988/DRV8825 stepper motor driver and
@@ -24,6 +24,7 @@
 
 #define stepsPerRevolution 200
 #define stepSpeed 500
+#define MAX_STEPS 1500  // maximum steps to move in one go
 
 int xPosition = 0;
 int yPosition = 0;
@@ -87,7 +88,13 @@ void loop() {
       // +1 to skip the space after RESET
       data = data.substring(5 + 1);
       handleReset(data);
-    } else {
+    }
+    // if data starts with MOVE, then move the stepper motors
+    if (data.startsWith("MOVE")) {
+      data = data.substring(4 + 1);
+      executeMove(data);
+    }
+    else {
       handleMove(data);
     }
   }
@@ -118,6 +125,35 @@ void handleReset(String data) {
       }
     }
   }
+}
+
+// MARK: executeMove
+void executeMove(String data) {
+  int firstComma = data.indexOf(",");
+  int secondComma = data.indexOf(",", firstComma + 1);
+  
+  int steps = data.substring(0, firstComma).toInt();
+  int xDir = data.substring(firstComma + 1, secondComma).toInt();
+  int yDir = data.substring(secondComma + 1).toInt();
+  
+  // check if the input is less than 0 or greater than MAX_STEPS
+  if (steps < 0 || steps > MAX_STEPS) {
+    Serial.println("Invalid steps");
+    return;
+  }
+  if (xDir != 0 && xDir != 1) {
+    Serial.println("Invalid x direction");
+    return;
+  }
+  if (yDir != 0 && yDir != 1) {
+    Serial.println("Invalid y direction");
+    return;
+  }
+  
+  Serial.println("Moving the stepper motors " + String(steps) + " steps in the direction: " + String(xDir) + "," + String(yDir));
+  
+  directionPrint(steps, xDir, yDir);
+  runStepper(steps, xDir, yDir);
 }
 
 // MARK: handleMove
