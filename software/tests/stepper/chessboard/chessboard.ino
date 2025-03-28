@@ -1,4 +1,6 @@
-/* 
+/*
+ * Version 1.1.0
+ *
  * Sketch to control two stepper motors with
  * A4988/DRV8825 stepper motor driver and
  * Arduino without a library to CORE X Y system
@@ -52,7 +54,7 @@ void setup() {
   Serial.println("Enter the moves in the format from_square to_square");
   Serial.println("For example, if you want to move from e2 to e4, Send e2e4\n\n");
   
-  Serial.print("Please send the position of magnet: ");
+  Serial.print("Please send the position of magnet (eg: a1, a8): ");
   // Wait until a valid serial message is received
   while (true) {
     if (Serial.available()) {
@@ -61,9 +63,11 @@ void setup() {
       data.toLowerCase();
       if (verifySquare(data)) {
         currentSquare = data;
+        Serial.print("Current Square: ");
+        Serial.println(currentSquare);
         break;
       } else {
-        Serial.println("Invalid square. Please send a valid position (e.g., a1, h8): ");
+        Serial.println("Invalid square. Please send a valid position (e.g., b1, h8): ");
       }
     }
   }
@@ -78,32 +82,71 @@ void loop() {
     data.trim();
     data.toLowerCase();
     
-    if (data.length() != 4) {
-      Serial.println("Invalid move. Please send the move in the format from_square to_square (e.g., e2e4): ");
-      return;
+    // if data starts with RESET, then reset the current position
+    if (data.startsWith("RESET")) {
+      // +1 to skip the space after RESET
+      data = data.substring(4 + 1);
+      handleReset(data);
+    } else {
+      handleMove(data);
     }
-    
-    String fromSquare = data.substring(0, 2);
-    String toSquare = data.substring(2);
-    
-    if (!verifySquare(fromSquare) || !verifySquare(toSquare)) {
-      Serial.println("Invalid square. Please send a valid position (e.g., a1, h8): ");
-      return;
-    }
-    
-    String currentFile, fromFile, toFile;
-    int currentRank, fromRank, toRank;
-    
-    extractFileRank(currentSquare, currentFile, currentRank);
-    extractFileRank(fromSquare, fromFile, fromRank);
-    extractFileRank(toSquare, toFile, toRank);
-    
-    moveFromTo(currentFile, currentRank, fromFile, fromRank);  // move to the from square
-    moveFromTo(fromFile, fromRank, toFile, toRank);            // move to the to square
-    
-    // update the current square
-    currentSquare = toSquare;
   }
+}
+
+// MARK: handleReset
+void handleReset(String data) {
+  if (verifySquare(data)) {
+    Serial.println("\nCurrent Square resetted from :" + currentSquare + " to :" + data);
+    currentSquare = data;
+    return;
+  }
+  Serial.println("Invalid reset position. Please send the reset position in the format filerank (e.g., e2, e4): ");
+  while (true)
+  {
+    if (Serial.available()) {
+      delay(100);
+      
+      String data = Serial.readString();
+      data.trim();
+      data.toLowerCase();
+      if (verifySquare(data)) {
+        Serial.println("\nCurrent Square resetted from :" + currentSquare + " to :" + data);
+        currentSquare = data;
+        break;
+      } else {
+        Serial.println("Invalid reset position. Please send the reset position in the format filerank (e.g., a1, g8): ");
+      }
+    }
+  }
+}
+
+// MARK: handleMove
+void handleMove(String data) {
+  if (data.length() != 4) {
+    Serial.println("Invalid move. Please send the move in the format from_square to_square (e.g., e2e4, a6a4): ");
+    return;
+  }
+  
+  String fromSquare = data.substring(0, 2);
+  String toSquare = data.substring(2);
+  
+  if (!verifySquare(fromSquare) || !verifySquare(toSquare)) {
+    Serial.println("Invalid move. Please send the move in the format from_square to_square (e.g., e2e4): ");
+    return;
+  }
+  
+  String currentFile, fromFile, toFile;
+  int currentRank, fromRank, toRank;
+  
+  extractFileRank(currentSquare, currentFile, currentRank);
+  extractFileRank(fromSquare, fromFile, fromRank);
+  extractFileRank(toSquare, toFile, toRank);
+  
+  moveFromTo(currentFile, currentRank, fromFile, fromRank);  // move to the from square
+  moveFromTo(fromFile, fromRank, toFile, toRank);            // move to the to square
+  
+  // update the current square
+  currentSquare = toSquare;
 }
 
 // MARK: extractFileRank
